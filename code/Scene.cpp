@@ -6,8 +6,10 @@
 
 #include "Scene.hpp"
 
-#include <iostream>
 #include <cassert>
+#include <cstdlib>
+#include <iostream>
+#include <vector>
 
 #include <glm.hpp>                          // vec3, vec4, ivec4, mat4
 #include <gtc/matrix_transform.hpp>         // translate, rotate, scale, perspective
@@ -19,13 +21,13 @@
 #include <assimp/postprocess.h>
 
 // Cargar texturas
-#include <SOIL2.h>
+//#include <SOIL2.h>
+
+using namespace std;
+using namespace glm;
 
 namespace udit
 {
-    
-    using namespace std;
-
     const string Scene::vertex_shader_code =
 
         "#version 330\n"
@@ -63,35 +65,6 @@ namespace udit
         "    gl_Position = projection_matrix * position;"
         "}";
 
-    //const string Scene::fragment_shader_code =
-    //    "#version 330\n"
-    //    "in  vec3 front_color;"
-    //    "in  vec2 uv;"
-    //    "out vec4 fragment_color;"
-    //    "uniform sampler2D texture_sampler;"
-    //    "uniform bool use_vertex_color;"
-    //    // Gestiona si se tiñe o no la textura según la información que le de al implementarla en "glUniform1i(use_vertex_color_id, GL_FALSE);" en render.
-    //    "void main()"
-    //    "{"
-    //    "    vec4 tex_color = texture(texture_sampler, uv);"
-    //    "    if (use_vertex_color)"
-    //    "        fragment_color = tex_color * vec4(front_color, 1.0);"
-    //    "    else"
-    //    "        fragment_color = tex_color;"
-    //    "}";
-
-    //const string Scene::fragment_shader_code =
-
-    //    "#version 330\n"
-    //    ""
-    //    "in  vec3    front_color;"
-    //    "out vec4 fragment_color;"
-    //    ""
-    //    "void main()"
-    //    "{"
-    //    "    fragment_color = vec4(front_color, 1.0);"
-    //    "}";
-
     const string Scene::fragment_shader_code =
 
         "#version 330\n"
@@ -126,31 +99,14 @@ namespace udit
         configure_material (program_id);
         configure_light    (program_id);
 
-
-        //// Almacenar la ID
-        //program_id = compile_shaders();
-        //glUseProgram(program_id);
-
-        //// Importar modelos 3D a la escena
-        //load_model("../binaries/Terreno.obj");
-        ////load_model("../binaries/Estadio.obj");
-
-        //// Texturizado
-        //use_vertex_color_id = glGetUniformLocation(program_id, "use_vertex_color");
-
-        //texture_id = SOIL_load_OGL_texture("../binaries/Textures/Stone_Base_Color.png", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
-
-        //if (texture_id == 0)
-        //    std::cerr << "Error al cargar la textura: " << SOIL_last_result() << std::endl;
-
-        //glBindTexture(GL_TEXTURE_2D, texture_id);
-        //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        ////
-
         resize (width, height);
+
+        load_mesh("../assets/stanford-bunny.obj");
+    }
+    Scene::~Scene()
+    {
+        glDeleteVertexArrays(1, &vao_id);
+        glDeleteBuffers(VBO_COUNT, vbo_ids);
     }
 
     void Scene::update ()
@@ -178,7 +134,11 @@ namespace udit
         glm::mat4 normal_matrix = glm::transpose(glm::inverse(model_view_matrix));
         glUniformMatrix4fv(normal_matrix_id, 1, GL_FALSE, glm::value_ptr(normal_matrix));
 
-        cube.render();
+        // Se dibuja la malla:
+        glBindVertexArray(vao_id);
+        glDrawElements(GL_TRIANGLES, number_of_indices, GL_UNSIGNED_SHORT, 0);
+
+        //cube.render();
     }
 
     /// <summary>
@@ -197,53 +157,58 @@ namespace udit
 
     GLuint Scene::compile_shaders ()
     {
-        /// Compilar los sombreadores individuales
         GLint succeeded = GL_FALSE;
 
-        // Se crean objetos para los sombreadores:
-        GLuint   vertex_shader_id = glCreateShader (GL_VERTEX_SHADER  );
-        GLuint fragment_shader_id = glCreateShader (GL_FRAGMENT_SHADER);
+        // Se crean objetos para los shaders:
 
-        // Se carga el código de los sombreadores:
-        const char *   vertex_shaders_code[] = {          vertex_shader_code.c_str () };
-        const char * fragment_shaders_code[] = {        fragment_shader_code.c_str () };
-        const GLint    vertex_shaders_size[] = { (GLint)  vertex_shader_code.size  () };
-        const GLint  fragment_shaders_size[] = { (GLint)fragment_shader_code.size  () };
+        GLuint   vertex_shader_id = glCreateShader(GL_VERTEX_SHADER);
+        GLuint fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER);
 
-        glShaderSource  (  vertex_shader_id, 1,   vertex_shaders_code,   vertex_shaders_size);
-        glShaderSource  (fragment_shader_id, 1, fragment_shaders_code, fragment_shaders_size);
+        // Se carga el código de los shaders:
 
-        // Se compilan los sombreadores:
-        glCompileShader (  vertex_shader_id);
-        glCompileShader (fragment_shader_id);
+        const char* vertex_shaders_code[] = { vertex_shader_code.c_str() };
+        const char* fragment_shaders_code[] = { fragment_shader_code.c_str() };
+        const GLint    vertex_shaders_size[] = { (GLint)vertex_shader_code.size() };
+        const GLint  fragment_shaders_size[] = { (GLint)fragment_shader_code.size() };
 
-        /// ---------------------------------------------------
-        // Se comprueba si la compilación ha tenido éxito:
-        glGetShaderiv   (  vertex_shader_id, GL_COMPILE_STATUS, &succeeded);
-        if (!succeeded) show_compilation_error (  vertex_shader_id);
+        glShaderSource(vertex_shader_id, 1, vertex_shaders_code, vertex_shaders_size);
+        glShaderSource(fragment_shader_id, 1, fragment_shaders_code, fragment_shaders_size);
 
-        glGetShaderiv   (fragment_shader_id, GL_COMPILE_STATUS, &succeeded);
-        if (!succeeded) show_compilation_error (fragment_shader_id);
-        /// ---------------------------------------------------
+        // Se compilan los shaders:
 
-        /// Combinar los sombreadores compilados anteriormente en un programa para usarlos en la GPU
+        glCompileShader(vertex_shader_id);
+        glCompileShader(fragment_shader_id);
+
+        // Se comprueba que si la compilación ha tenido éxito:
+
+        glGetShaderiv(vertex_shader_id, GL_COMPILE_STATUS, &succeeded);
+        if (!succeeded) show_compilation_error(vertex_shader_id);
+
+        glGetShaderiv(fragment_shader_id, GL_COMPILE_STATUS, &succeeded);
+        if (!succeeded) show_compilation_error(fragment_shader_id);
+
         // Se crea un objeto para un programa:
-        GLuint program_id = glCreateProgram ();
 
-        // Se cargan los sombreadores compilados en el programa:
-        glAttachShader  (program_id,   vertex_shader_id);
-        glAttachShader  (program_id, fragment_shader_id);
+        GLuint program_id = glCreateProgram();
 
-        // Se enlazan los sombreadores:
-        glLinkProgram   (program_id);
+        // Se cargan los shaders compilados en el programa:
 
-        // Se comprueba si el enlace ha tenido éxito:
-        glGetProgramiv  (program_id, GL_LINK_STATUS, &succeeded);
-        if (!succeeded) show_linkage_error (program_id);
+        glAttachShader(program_id, vertex_shader_id);
+        glAttachShader(program_id, fragment_shader_id);
 
-        // Se liberan los sombreadores compilados una vez se han enlazado:
-        glDeleteShader (  vertex_shader_id);
-        glDeleteShader (fragment_shader_id);
+        // Se linkan los shaders:
+
+        glLinkProgram(program_id);
+
+        // Se comprueba si el linkage ha tenido éxito:
+
+        glGetProgramiv(program_id, GL_LINK_STATUS, &succeeded);
+        if (!succeeded) show_linkage_error(program_id);
+
+        // Se liberan los shaders compilados una vez se han linkado:
+
+        glDeleteShader(vertex_shader_id);
+        glDeleteShader(fragment_shader_id);
 
         return (program_id);
     }
@@ -253,84 +218,81 @@ namespace udit
     ///     Importa un modelo 3D a la escena
     /// </summary>
     /// <param name="path"></param>
-    void Scene::load_model(const std::string& path)
+    void Scene::load_mesh(const std::string& mesh_file_path)
     {
         Assimp::Importer importer;
 
-        const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals);
+        auto scene = importer.ReadFile
+        (
+            mesh_file_path,
+            aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_SortByPType
+        );
 
-        if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
+        // Si scene es un puntero nulo significa que el archivo no se pudo cargar con éxito:
+        if (scene && scene->mNumMeshes > 0)
         {
-            std::cerr << "Assimp error: " << importer.GetErrorString() << std::endl;
-            return;
-        }
+            // Para este ejemplo se coge la primera malla solamente:
+            auto mesh = scene->mMeshes[0];
 
-        aiMesh* mesh = scene->mMeshes[0]; // Usamos solo la primera malla
+            size_t number_of_vertices = mesh->mNumVertices;
 
-        std::vector<float> vertices;
-        std::vector<unsigned int> indices;
+            // Se generan índices para los VBOs del cubo:
+            glGenBuffers(VBO_COUNT, vbo_ids);
+            glGenVertexArrays(1, &vao_id);
 
-        for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
-        {
-            // Posición
-            vertices.push_back(mesh->mVertices[i].x);
-            vertices.push_back(mesh->mVertices[i].y);
-            vertices.push_back(mesh->mVertices[i].z);
+            // Se activa el VAO del cubo para configurarlo:
+            glBindVertexArray(vao_id);
 
-            // Color (fijo)
-            vertices.push_back(1.0f);
-            vertices.push_back(0.5f);
-            vertices.push_back(0.2f);
+            // Se suben a un VBO los datos de coordenadas y se vinculan al VAO:
+            static_assert(sizeof(aiVector3D) == sizeof(fvec3), "aiVector3D should composed of three floats");
 
-            // UVs (si existen)
-            if (mesh->mTextureCoords[0]) 
+            glBindBuffer(GL_ARRAY_BUFFER, vbo_ids[COORDINATES_VBO]);
+            glBufferData(GL_ARRAY_BUFFER, number_of_vertices * sizeof(aiVector3D), mesh->mVertices, GL_STATIC_DRAW);
+
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+            // El archivo del modelo 3D de ejemplo no guarda un color por cada vértice, por lo que se va
+            // a crear un array de colores aleatorios (tantos como vértices):
+            vector< vec3 > vertex_colors(number_of_vertices);
+
+            for (auto& color : vertex_colors)
             {
-                vertices.push_back(mesh->mTextureCoords[0][i].x);
-                vertices.push_back(mesh->mTextureCoords[0][i].y);
+                color = random_color();
             }
-            else 
+
+            // Se suben a un VBO los datos de color y se vinculan al VAO:
+            glBindBuffer(GL_ARRAY_BUFFER, vbo_ids[COLORS_VBO]);
+            glBufferData(GL_ARRAY_BUFFER, vertex_colors.size() * sizeof(vec3), vertex_colors.data(), GL_STATIC_DRAW);
+
+            glEnableVertexAttribArray(1);
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+            // Los índices en ASSIMP están repartidos en "faces", pero OpenGL necesita un array de enteros
+            // por lo que vamos a mover los índices de las "faces" a un array de enteros:
+
+            // Se asume que todas las "faces" son triángulos (revisar el flag aiProcess_Triangulate arriba).
+            number_of_indices = mesh->mNumFaces * 3;
+
+            vector< GLshort > indices(number_of_indices);
+
+            auto vertex_index = indices.begin();
+
+            for (unsigned i = 0; i < mesh->mNumFaces; ++i)
             {
-                vertices.push_back(0.0f);
-                vertices.push_back(0.0f);
+                auto& face = mesh->mFaces[i];
+
+                assert(face.mNumIndices == 3);
+
+                *vertex_index++ = face.mIndices[0];
+                *vertex_index++ = face.mIndices[1];
+                *vertex_index++ = face.mIndices[2];
             }
+
+            // Se suben a un EBO los datos de índices:
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_ids[INDICES_EBO]);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLshort), indices.data(), GL_STATIC_DRAW);
         }
-
-        for (unsigned int i = 0; i < mesh->mNumFaces; ++i)
-        {
-            aiFace face = mesh->mFaces[i];
-            for (unsigned int j = 0; j < face.mNumIndices; ++j)
-            {
-                indices.push_back(face.mIndices[j]);
-            }
-        }
-
-        index_count = indices.size();
-
-        glGenVertexArrays(1, &vao_model);
-        glGenBuffers(1, &vbo_model);
-        glGenBuffers(1, &ebo_model);
-
-        glBindVertexArray(vao_model);
-
-        glBindBuffer(GL_ARRAY_BUFFER, vbo_model);
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_model);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
-
-        // Posición
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-
-        // Color
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-
-        // UV
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-
-        glBindVertexArray(0);
     }
 
     void Scene::configure_material(GLuint program_id)
@@ -396,5 +358,16 @@ namespace udit
     }
 
     /// ---------------------------------------------------
+
+    glm::vec3 Scene::random_color()
+    {
+        return glm::vec3
+        (
+            float(rand()) / float(RAND_MAX),
+            float(rand()) / float(RAND_MAX),
+            float(rand()) / float(RAND_MAX)
+        );
+    }
+
 }
 
