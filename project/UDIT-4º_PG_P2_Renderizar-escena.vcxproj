@@ -79,15 +79,21 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\code\Camera.hpp" />
+    <ClInclude Include="..\code\Color.hpp" />
+    <ClInclude Include="..\code\Color_Buffer.hpp" />
     <ClInclude Include="..\code\Cube.hpp" />
+    <ClInclude Include="..\code\opengl-recipes.hpp" />
     <ClInclude Include="..\code\Scene.hpp" />
+    <ClInclude Include="..\code\Terrain.hpp" />
     <ClInclude Include="..\code\Window.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\code\Camera.cpp" />
     <ClCompile Include="..\code\Cube.cpp" />
     <ClCompile Include="..\code\main.cpp" />
+    <ClCompile Include="..\code\opengl-recipes.cpp" />
     <ClCompile Include="..\code\Scene.cpp" />
+    <ClCompile Include="..\code\Terrain.cpp" />
     <ClCompile Include="..\code\Window.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

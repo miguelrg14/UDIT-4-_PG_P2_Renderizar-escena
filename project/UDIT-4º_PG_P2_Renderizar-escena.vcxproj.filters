@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Archivos de encabezado\Otros">
+      <UniqueIdentifier>{fc276c53-a517-4fbc-a50b-e031a43ece16}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Archivos de recursos\Otros">
+      <UniqueIdentifier>{4913cb49-fa64-48c5-bac0-d87604a30fc6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\code\Scene.hpp">
@@ -26,6 +32,18 @@
     </ClInclude>
     <ClInclude Include="..\code\Cube.hpp">
       <Filter>Archivos de encabezado</Filter>
+    </ClInclude>
+    <ClInclude Include="..\code\Terrain.hpp">
+      <Filter>Archivos de encabezado</Filter>
+    </ClInclude>
+    <ClInclude Include="..\code\Color.hpp">
+      <Filter>Archivos de encabezado\Otros</Filter>
+    </ClInclude>
+    <ClInclude Include="..\code\Color_Buffer.hpp">
+      <Filter>Archivos de encabezado\Otros</Filter>
+    </ClInclude>
+    <ClInclude Include="..\code\opengl-recipes.hpp">
+      <Filter>Archivos de encabezado\Otros</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -43,6 +61,12 @@
     </ClCompile>
     <ClCompile Include="..\code\Cube.cpp">
       <Filter>Archivos de recursos</Filter>
+    </ClCompile>
+    <ClCompile Include="..\code\Terrain.cpp">
+      <Filter>Archivos de recursos</Filter>
+    </ClCompile>
+    <ClCompile Include="..\code\opengl-recipes.cpp">
+      <Filter>Archivos de recursos\Otros</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

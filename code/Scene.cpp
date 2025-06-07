@@ -21,7 +21,7 @@
 #include <assimp/postprocess.h>
 
 // Cargar texturas
-//#include <SOIL2.h>
+#include <SOIL2.h>
 
 using namespace std;
 using namespace glm;
@@ -29,58 +29,52 @@ using namespace glm;
 namespace udit
 {
     const string Scene::vertex_shader_code =
-
         "#version 330\n"
-        ""
-        "struct Light"
-        "{"
-        "    vec4 position;"
-        "    vec3 color;"
-        "};"
-        ""
-        "uniform Light light;"
-        "uniform float ambient_intensity;"
-        "uniform float diffuse_intensity;"
-        ""
-        "uniform vec3 material_color;"
-        ""
-        "uniform mat4 model_view_matrix;"
-        "uniform mat4 projection_matrix;"
-        "uniform mat4     normal_matrix;"
-        ""
-        "layout (location = 0) in vec3 vertex_coordinates;"
-        "layout (location = 1) in vec3 vertex_normal;"
-        ""
-        "out vec3 front_color;"
-        ""
-        "void main()"
-        "{"
-        "    vec4  normal   = normal_matrix * vec4(vertex_normal, 0.0);"
-        "    vec4  position = model_view_matrix * vec4(vertex_coordinates, 1.0);"
-        ""
-        "    vec4  light_direction = light.position - position;"
-        "    float light_intensity = diffuse_intensity * max (dot (normalize (normal.xyz), normalize (light_direction.xyz)), 0.0);"
-        ""
-        "    front_color = ambient_intensity * material_color + diffuse_intensity * light_intensity * light.color * material_color;"
-        "    gl_Position = projection_matrix * position;"
+        "struct Light\n"
+        "{\n"
+        "    vec4 position;\n"
+        "    vec3 color;\n"
+        "};\n"
+        "uniform Light light;\n"
+        "uniform float ambient_intensity;\n"
+        "uniform float diffuse_intensity;\n"
+        "uniform vec3 material_color;\n"
+        "uniform mat4 model_view_matrix;\n"
+        "uniform mat4 projection_matrix;\n"
+        "uniform mat4 normal_matrix;\n"
+        "layout (location = 0) in vec3 vertex_coordinates;\n"
+        "layout (location = 1) in vec3 vertex_normal;\n"
+        "layout (location = 2) in vec2 vertex_uv;\n"
+        "out vec3 front_color;\n"
+        "out vec2 frag_uv;\n"
+        "void main()\n"
+        "{\n"
+        "    vec4 normal = normal_matrix * vec4(vertex_normal, 0.0);\n"
+        "    vec4 position = model_view_matrix * vec4(vertex_coordinates, 1.0);\n"
+        "    vec4 light_dir = light.position - position;\n"
+        "    float intensity = diffuse_intensity * max(dot(normalize(normal.xyz), normalize(light_dir.xyz)), 0.0);\n"
+        "    front_color = ambient_intensity * material_color + intensity * light.color * material_color;\n"
+        "    frag_uv = vertex_uv;\n"
+        "    gl_Position = projection_matrix * position;\n"
         "}";
 
     const string Scene::fragment_shader_code =
-
         "#version 330\n"
-        ""
-        "in  vec3    front_color;"
-        "out vec4 fragment_color;"
-        ""
-        "void main()"
-        "{"
-        "    fragment_color = vec4(front_color, 1.0);"
+        "in vec3 front_color;\n"
+        "in vec2 frag_uv;\n"
+        "uniform sampler2D sampler;\n"
+        "out vec4 fragment_color;\n"
+        "void main()\n"
+        "{\n"
+        "    vec4 texture_color = texture(sampler, frag_uv);\n"
+        "    fragment_color = vec4(front_color, 1.0) * texture_color;\n"
         "}";
 
-    Scene::Scene(unsigned width, unsigned height) 
+    Scene::Scene(unsigned width, unsigned height)
         : 
         camera(glm::vec3(0, 0, 5)), 
         angle(0)
+        //terrain(10.f, 10.f, 50, 50)
     {
         // Se establece la configuración básica:
         glEnable     (GL_CULL_FACE );
@@ -95,13 +89,37 @@ namespace udit
         model_view_matrix_id = glGetUniformLocation (program_id, "model_view_matrix");
         projection_matrix_id = glGetUniformLocation (program_id, "projection_matrix");
             normal_matrix_id = glGetUniformLocation (program_id, "normal_matrix"    );
+
+        // Se establece la altura máxima del height map en el vertex shader:
+        //glUniform1f(glGetUniformLocation(program_id, "max_height"), 5.f);
+
+        texture_id = SOIL_load_OGL_texture
+        (
+            "../assets/Stone_Base_Color.png",            // Ruta de la textura
+            SOIL_LOAD_AUTO,
+            SOIL_CREATE_NEW_ID,
+            SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y
+        );
+
+        if (texture_id == 0) 
+        {
+            std::cerr << "Error cargando textura: " << SOIL_last_result() << std::endl;
+        }
+        else 
+        {
+            glBindTexture(GL_TEXTURE_2D, texture_id);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        }
         
         configure_material (program_id);
         configure_light    (program_id);
 
         resize (width, height);
 
-        load_mesh("../assets/stanford-bunny.obj");
+        load_mesh("../assets/Terreno.obj");
     }
     Scene::~Scene()
     {
@@ -134,11 +152,18 @@ namespace udit
         glm::mat4 normal_matrix = glm::transpose(glm::inverse(model_view_matrix));
         glUniformMatrix4fv(normal_matrix_id, 1, GL_FALSE, glm::value_ptr(normal_matrix));
 
+        // Texturizado
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture_id);
+        glUniform1i(glGetUniformLocation(program_id, "sampler"), 0);
+
         // Se dibuja la malla:
         glBindVertexArray(vao_id);
         glDrawElements(GL_TRIANGLES, number_of_indices, GL_UNSIGNED_SHORT, 0);
 
         //cube.render();
+        // Se renderiza el terreno
+        //terrain.render();
     }
 
     /// <summary>
@@ -233,57 +258,63 @@ namespace udit
         {
             // Para este ejemplo se coge la primera malla solamente:
             auto mesh = scene->mMeshes[0];
-
             size_t number_of_vertices = mesh->mNumVertices;
 
             // Se generan índices para los VBOs del cubo:
             glGenBuffers(VBO_COUNT, vbo_ids);
             glGenVertexArrays(1, &vao_id);
-
             // Se activa el VAO del cubo para configurarlo:
             glBindVertexArray(vao_id);
 
-            // Se suben a un VBO los datos de coordenadas y se vinculan al VAO:
-            static_assert(sizeof(aiVector3D) == sizeof(fvec3), "aiVector3D should composed of three floats");
-
+            // Coordenadas
             glBindBuffer(GL_ARRAY_BUFFER, vbo_ids[COORDINATES_VBO]);
             glBufferData(GL_ARRAY_BUFFER, number_of_vertices * sizeof(aiVector3D), mesh->mVertices, GL_STATIC_DRAW);
-
             glEnableVertexAttribArray(0);
             glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
+
             // El archivo del modelo 3D de ejemplo no guarda un color por cada vértice, por lo que se va
             // a crear un array de colores aleatorios (tantos como vértices):
-            vector< vec3 > vertex_colors(number_of_vertices);
+            // vector< vec3 > vertex_colors(number_of_vertices);
+            // for (auto& color : vertex_colors)
+            // {
+            //     color = random_color();
+            // }
 
-            for (auto& color : vertex_colors)
+            // Normales (para iluminación)
+            if (mesh->HasNormals())
             {
-                color = random_color();
+                // Se suben a un VBO los datos de color y se vinculan al VAO:
+                glBindBuffer(GL_ARRAY_BUFFER, vbo_ids[COLORS_VBO]);
+                glBufferData(GL_ARRAY_BUFFER, number_of_vertices * sizeof(aiVector3D), mesh->mNormals, GL_STATIC_DRAW);
+                glEnableVertexAttribArray(1);
+                glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
             }
 
-            // Se suben a un VBO los datos de color y se vinculan al VAO:
-            glBindBuffer(GL_ARRAY_BUFFER, vbo_ids[COLORS_VBO]);
-            glBufferData(GL_ARRAY_BUFFER, vertex_colors.size() * sizeof(vec3), vertex_colors.data(), GL_STATIC_DRAW);
+            // Coordenadas de textura (UVs)
+            if (mesh->HasTextureCoords(0))
+            {
+                vector<vec2> uvs(number_of_vertices);
+                for (unsigned i = 0; i < number_of_vertices; ++i)
+                {
+                    uvs[i] = vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
+                }
+                glBindBuffer(GL_ARRAY_BUFFER, vbo_ids[UVS_VBO]);
+                glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(vec2), uvs.data(), GL_STATIC_DRAW);
+                glEnableVertexAttribArray(2);
+                glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
+            }
 
-            glEnableVertexAttribArray(1);
-            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
+            // Índices
             // Los índices en ASSIMP están repartidos en "faces", pero OpenGL necesita un array de enteros
             // por lo que vamos a mover los índices de las "faces" a un array de enteros:
-
             // Se asume que todas las "faces" son triángulos (revisar el flag aiProcess_Triangulate arriba).
             number_of_indices = mesh->mNumFaces * 3;
-
-            vector< GLshort > indices(number_of_indices);
-
+            vector<GLshort> indices(number_of_indices);
             auto vertex_index = indices.begin();
-
             for (unsigned i = 0; i < mesh->mNumFaces; ++i)
             {
                 auto& face = mesh->mFaces[i];
-
-                assert(face.mNumIndices == 3);
-
                 *vertex_index++ = face.mIndices[0];
                 *vertex_index++ = face.mIndices[1];
                 *vertex_index++ = face.mIndices[2];
@@ -299,7 +330,7 @@ namespace udit
     {
         GLint material_color = glGetUniformLocation(program_id, "material_color");
 
-        glUniform3f(material_color, 0.f, 1.f, 0.f);
+        glUniform3f(material_color, 1.f, 1.f, 1.f);
     }
 
     void Scene::configure_light(GLuint program_id)

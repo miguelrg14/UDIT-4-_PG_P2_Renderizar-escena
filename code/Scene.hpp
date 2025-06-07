@@ -9,6 +9,7 @@
 #include <string>
 #include "Camera.hpp"
 #include "Cube.hpp"
+//#include "Terrain.hpp"
 
 namespace udit
 {
@@ -22,6 +23,7 @@ namespace udit
             COORDINATES_VBO,
             COLORS_VBO,
             INDICES_EBO,
+            UVS_VBO,
             VBO_COUNT
         };
 
@@ -31,6 +33,8 @@ namespace udit
         GLint   model_view_matrix_id;
         GLint   projection_matrix_id;
         GLint       normal_matrix_id;
+
+        //Terrain terrain;
 
         Cube    cube;
         float   angle;
