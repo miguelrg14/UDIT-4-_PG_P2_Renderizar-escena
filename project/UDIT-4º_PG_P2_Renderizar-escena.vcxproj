@@ -78,10 +78,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\code\Camera.hpp" />
+    <ClInclude Include="..\code\Cube.hpp" />
     <ClInclude Include="..\code\Scene.hpp" />
     <ClInclude Include="..\code\Window.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\code\Camera.cpp" />
+    <ClCompile Include="..\code\Cube.cpp" />
     <ClCompile Include="..\code\main.cpp" />
     <ClCompile Include="..\code\Scene.cpp" />
     <ClCompile Include="..\code\Window.cpp" />

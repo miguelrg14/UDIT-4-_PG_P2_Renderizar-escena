@@ -1,6 +1,0 @@
-assimp, 
-glad, 
-glm, 
-half, 
-sdl, 
-soil2
