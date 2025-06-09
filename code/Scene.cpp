@@ -30,44 +30,55 @@ namespace udit
 {
     const string Scene::vertex_shader_code =
         "#version 330\n"
+        ""
         "struct Light\n"
         "{\n"
         "    vec4 position;\n"
         "    vec3 color;\n"
         "};\n"
+        ""
+        "uniform mat4 model_view_matrix;\n"
+        "uniform mat4 projection_matrix;\n"
+        ""
         "uniform Light light;\n"
         "uniform float ambient_intensity;\n"
         "uniform float diffuse_intensity;\n"
+        ""
         "uniform vec3 material_color;\n"
-        "uniform mat4 model_view_matrix;\n"
-        "uniform mat4 projection_matrix;\n"
         "uniform mat4 normal_matrix;\n"
+        ""
         "layout (location = 0) in vec3 vertex_coordinates;\n"
         "layout (location = 1) in vec3 vertex_normal;\n"
         "layout (location = 2) in vec2 vertex_uv;\n"
+        ""
         "out vec3 front_color;\n"
-        "out vec2 frag_uv;\n"
+        "out vec2 texture_uv;\n"
+        ""
         "void main()\n"
         "{\n"
-        "    vec4 normal = normal_matrix * vec4(vertex_normal, 0.0);\n"
-        "    vec4 position = model_view_matrix * vec4(vertex_coordinates, 1.0);\n"
-        "    vec4 light_dir = light.position - position;\n"
+        "    vec4 normal     = normal_matrix * vec4(vertex_normal, 0.0);\n"
+        "    vec4 position   = model_view_matrix * vec4(vertex_coordinates, 1.0);\n"
+        "    vec4 light_dir  = light.position - position;\n"
         "    float intensity = diffuse_intensity * max(dot(normalize(normal.xyz), normalize(light_dir.xyz)), 0.0);\n"
-        "    front_color = ambient_intensity * material_color + intensity * light.color * material_color;\n"
-        "    frag_uv = vertex_uv;\n"
-        "    gl_Position = projection_matrix * position;\n"
+        "    front_color     = ambient_intensity * material_color + intensity * light.color * material_color;\n"
+        "    texture_uv      = vertex_uv;\n"
+        "    gl_Position     = projection_matrix * position;\n"
         "}";
 
     const string Scene::fragment_shader_code =
         "#version 330\n"
-        "in vec3 front_color;\n"
-        "in vec2 frag_uv;\n"
+        ""
         "uniform sampler2D sampler;\n"
+        ""
+        "in  vec2 texture_uv;\n"
         "out vec4 fragment_color;\n"
+        "in  vec3 front_color;\n"
+        ""
         "void main()\n"
         "{\n"
-        "    vec4 texture_color = texture(sampler, frag_uv);\n"
-        "    fragment_color = vec4(front_color, 1.0) * texture_color;\n"
+        "    vec4 texture_color = texture(sampler, texture_uv);\n"
+        ""
+        "    fragment_color = vec4(front_color, 0.5) * texture_color;\n" // Resultado final visual
         "}";
 
     const string Scene::texture_path = "../assets/Stone_Base_Color.png";
@@ -78,11 +89,6 @@ namespace udit
         angle(0)
         //terrain(10.f, 10.f, 50, 50)
     {
-        // Se establece la configuración básica:
-        glEnable     (GL_CULL_FACE );
-        glEnable     (GL_DEPTH_TEST);
-        glClearColor (.1f, .1f, .1f, 1.f);
-
         // Se compilan y se activan los shaders:
         GLuint program_id = compile_shaders ();
 
@@ -99,30 +105,14 @@ namespace udit
 
         // Se establece la altura máxima del height map en el vertex shader:
         glUniform1f(glGetUniformLocation(program_id, "max_height"), 5.f);
-
-        //texture_id = SOIL_load_OGL_texture
-        //(
-        //    "../assets/Stone_Base_Color.png",            // Ruta de la textura
-        //    SOIL_LOAD_AUTO,
-        //    SOIL_CREATE_NEW_ID,
-        //    SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y
-        //);
-
-        //if (texture_id == 0) 
-        //{
-        //    std::cerr << "Error cargando textura: " << SOIL_last_result() << std::endl;
-        //}
-        //else 
-        //{
-        //    glBindTexture(GL_TEXTURE_2D, texture_id);
-        //    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        //    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        //    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        //    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        //}
         
         configure_material (program_id);
         configure_light    (program_id);
+
+        // Se establece la configuración básica:
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
+        glClearColor(.1f, .1f, .1f, 1.f);
 
         resize (width, height);
 
@@ -143,15 +133,23 @@ namespace udit
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // Se selecciona la textura si está disponible:
+        if (there_is_texture)
+        {
+            glBindTexture(GL_TEXTURE_2D, texture_id);
+        }
+
+        /// CÁMARA
+        // MATRIZ DE VISTA (transformaciones de la cámara)
+        glm::mat4 view = camera.get_view_matrix();
+
+        /// PRIMERA ETAPA (RENDER DE LOS OBJETOS OPACOS):
         // MATRIZ DEL MODELO (transformaciones del cubo)
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0.f, -1.f, -3.f));  // Posición fija del cubo
         model = glm::rotate(model, angle, glm::vec3(1.f, 1.f, 0.f)); // Rotación sobre eje Y
 
-        // MATRIZ DE VISTA (transformaciones de la cámara)
-        glm::mat4 view = camera.get_view_matrix();
-
-        // COMBINACIÓN FINAL
+        // COMBINACIÓN FINAL: Cámara + modelos
         glm::mat4 model_view_matrix = view * model;
 
         glUniformMatrix4fv(model_view_matrix_id, 1, GL_FALSE, glm::value_ptr(model_view_matrix));
@@ -171,6 +169,27 @@ namespace udit
         //cube.render();
         // Se renderiza el terreno
         //terrain.render();
+
+        /// SEGUNDA ETAPA (RENDER DE LOS OBJETOS TRANSPARENTES):
+        // Se habilita la mezcla con el color de fondo usando el canal alpha y se deshabilita la escritura en el Z-Buffer:
+        glDepthMask(GL_FALSE);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        // Se rota otro cubo y se empuja hacia el fondo:
+        model = glm::mat4(1);
+        model = glm::translate(model, glm::vec3(0.f, 0.f, -5.f));
+        model = glm::rotate(model, angle, glm::vec3(0.f, 1.f, 0.f));
+        model = glm::translate(model, glm::vec3(0.f, 0.f, +2.f));
+
+        glUniformMatrix4fv(model_view_matrix_id, 1, GL_FALSE, glm::value_ptr(model_view_matrix));
+
+        // Se renderiza un cubo:
+        cube.render();
+
+        // Se deshabilita la mezcla con el fondo y se restaura escritura en el Z-Buffer:
+        glDisable(GL_BLEND);
+        glDepthMask(GL_TRUE);
     }
 
     /// <summary>
@@ -192,27 +211,23 @@ namespace udit
         GLint succeeded = GL_FALSE;
 
         // Se crean objetos para los shaders:
-
         GLuint   vertex_shader_id = glCreateShader(GL_VERTEX_SHADER);
         GLuint fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER);
 
         // Se carga el código de los shaders:
-
-        const char* vertex_shaders_code[] = { vertex_shader_code.c_str() };
-        const char* fragment_shaders_code[] = { fragment_shader_code.c_str() };
-        const GLint    vertex_shaders_size[] = { (GLint)vertex_shader_code.size() };
+        const char*    vertex_shaders_code[] = {         vertex_shader_code.c_str() };
+        const char*  fragment_shaders_code[] = {       fragment_shader_code.c_str() };
+        const GLint    vertex_shaders_size[] = { (GLint)  vertex_shader_code.size() };
         const GLint  fragment_shaders_size[] = { (GLint)fragment_shader_code.size() };
 
-        glShaderSource(vertex_shader_id, 1, vertex_shaders_code, vertex_shaders_size);
+        glShaderSource(  vertex_shader_id, 1,   vertex_shaders_code,   vertex_shaders_size);
         glShaderSource(fragment_shader_id, 1, fragment_shaders_code, fragment_shaders_size);
 
         // Se compilan los shaders:
-
-        glCompileShader(vertex_shader_id);
+        glCompileShader(  vertex_shader_id);
         glCompileShader(fragment_shader_id);
 
         // Se comprueba que si la compilación ha tenido éxito:
-
         glGetShaderiv(vertex_shader_id, GL_COMPILE_STATUS, &succeeded);
         if (!succeeded) show_compilation_error(vertex_shader_id);
 
@@ -220,25 +235,20 @@ namespace udit
         if (!succeeded) show_compilation_error(fragment_shader_id);
 
         // Se crea un objeto para un programa:
-
         GLuint program_id = glCreateProgram();
 
         // Se cargan los shaders compilados en el programa:
-
         glAttachShader(program_id, vertex_shader_id);
         glAttachShader(program_id, fragment_shader_id);
 
         // Se linkan los shaders:
-
         glLinkProgram(program_id);
 
         // Se comprueba si el linkage ha tenido éxito:
-
         glGetProgramiv(program_id, GL_LINK_STATUS, &succeeded);
         if (!succeeded) show_linkage_error(program_id);
 
         // Se liberan los shaders compilados una vez se han linkado:
-
         glDeleteShader(vertex_shader_id);
         glDeleteShader(fragment_shader_id);
 
