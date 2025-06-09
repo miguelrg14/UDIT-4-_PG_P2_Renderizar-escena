@@ -4,9 +4,12 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
 #include <glad/glad.h>
 #include <glm.hpp>
-#include <string>
+#include "Color.hpp"
+#include "Color_Buffer.hpp"
 #include "Camera.hpp"
 #include "Cube.hpp"
 //#include "Terrain.hpp"
@@ -17,6 +20,8 @@ namespace udit
     class Scene
     {
     private:
+
+        typedef Color_Buffer< Rgba8888 > Color_Buffer;
 
         enum
         {
@@ -29,6 +34,8 @@ namespace udit
 
         static const std::string    vertex_shader_code;
         static const std::string    fragment_shader_code;
+        static const std::string    texture_path;
+
 
         GLint   model_view_matrix_id;
         GLint   projection_matrix_id;
@@ -52,6 +59,7 @@ namespace udit
         GLuint program_id;
         GLuint texture_id = 0;
         GLuint use_vertex_color_id;
+        bool   there_is_texture;
 
     public:
 
@@ -76,6 +84,9 @@ namespace udit
 
         void   configure_material(GLuint program_id);
         void   configure_light(GLuint program_id);
+
+        GLuint create_texture_2d(const std::string& texture_path);
+        std::unique_ptr< Color_Buffer > load_image(const std::string& image_path);
     };
 
 }
