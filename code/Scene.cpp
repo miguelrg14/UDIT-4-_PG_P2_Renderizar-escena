@@ -107,9 +107,10 @@ namespace udit
         ""
         "void main()"
         "{"
-        "    vec3 color = texture (sampler2d, texture_uv.st).rgb;"
-        "    float i = (color.r + color.g + color.b) * 0.3333333333;"
-        "    fragment_color = vec4(vec3(i, i, i) * vec3(1.0, 0.75, 0.5), 1.0);"
+        //"   vec3 color = texture (sampler2d, texture_uv.st).rgb;"
+        //"   float i = (color.r + color.g + color.b) * 0.3333333333;"
+        //"   fragment_color = vec4(vec3(i, i, i) * vec3(1.0, 0.75, 0.5), 1.0);"    // Aplica un tono de color amarronado
+        "   fragment_color = texture(sampler2d, texture_uv);"
         "}";
 
     const string Scene::texture_path = "../assets/Stone_Base_Color.png";
@@ -210,8 +211,8 @@ namespace udit
 
         // Texturizado
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, out_texture_id);
-        glUniform1i(glGetUniformLocation(effect_program_id, "sampler2d"), 0);
+        glBindTexture(GL_TEXTURE_2D, texture_id);
+        glUniform1i(glGetUniformLocation(program_id, "sampler"), 0);
 
         // Se dibuja la malla:
         glBindVertexArray(vao_id);
