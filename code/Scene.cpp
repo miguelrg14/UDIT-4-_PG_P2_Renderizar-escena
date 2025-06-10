@@ -133,10 +133,10 @@ namespace udit
 
         model_view_matrix_id = glGetUniformLocation(program_id, "model_view_matrix");
         projection_matrix_id = glGetUniformLocation(program_id, "projection_matrix");
-        normal_matrix_id = glGetUniformLocation(program_id, "normal_matrix");
+            normal_matrix_id = glGetUniformLocation(program_id,     "normal_matrix");
 
         // Se carga la textura y se envía a la GPU:
-        texture_id = create_texture_2d(texture_path);
+              texture_id = create_texture_2d(texture_path);
         there_is_texture = texture_id > 0;
 
         // Se establece la altura máxima del height map en el vertex shader:
@@ -147,7 +147,7 @@ namespace udit
 
         // Se establece la configuración básica:
         glEnable(GL_CULL_FACE);
-        // glEnable(GL_DEPTH_TEST);     // PANTALLAZO NEGRO CON ESTO ACTIVADO!!!
+        glEnable(GL_DEPTH_TEST);     // PANTALLAZO NEGRO CON ESTO ACTIVADO!!!
         glClearColor(0.f, 0.f, 0.f, 1.f);
 
         resize(width, height);
@@ -195,14 +195,18 @@ namespace udit
         // MATRIZ DE VISTA (transformaciones de la cámara)
         glm::mat4 view = camera.get_view_matrix();
 
-        /// PRIMERA ETAPA (RENDER DE LOS OBJETOS OPACOS):
-        // MATRIZ DEL MODELO (transformaciones del cubo)
+        /// MATRIZ DEL MODELO (transformaciones del cubo)
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0.f, -1.f, -3.f));  // Posición fija del cubo
         model = glm::rotate(model, angle, glm::vec3(1.f, 1.f, 0.f)); // Rotación sobre eje Y
 
         // COMBINACIÓN FINAL: Cámara + modelos
         glm::mat4 model_view_matrix = view * model;
+
+        /// PRIMERA ETAPA (RENDER DE LOS OBJETOS OPACOS):
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
 
         glUniformMatrix4fv(model_view_matrix_id, 1, GL_FALSE, glm::value_ptr(model_view_matrix));
 
@@ -218,14 +222,11 @@ namespace udit
         glBindVertexArray(vao_id);
         glDrawElements(GL_TRIANGLES, number_of_indices, GL_UNSIGNED_SHORT, 0);
 
-        //// Se renderiza el cubo en el framebuffer:
-        //cube.render();
-
         /// SEGUNDA ETAPA (RENDER DE LOS OBJETOS TRANSPARENTES):
         // Se habilita la mezcla con el color de fondo usando el canal alpha y se deshabilita la escritura en el Z-Buffer:
-        glDepthMask(GL_FALSE);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDepthMask(GL_FALSE);
 
         // Se rota otro cubo y se empuja hacia el fondo:
         model = glm::mat4(1);
@@ -235,19 +236,16 @@ namespace udit
 
         glUniformMatrix4fv(model_view_matrix_id, 1, GL_FALSE, glm::value_ptr(model_view_matrix));
 
-        // Se renderiza un cubo:
+        // Se renderiza el cubo en el framebuffer:
         cube.render();
 
         // Se deshabilita la mezcla con el fondo y se restaura escritura en el Z-Buffer:
-        glDisable(GL_BLEND);
         glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
 
-        /// Postprocesado
-        // Renderizado postprocesado final a pantalla
-        //glBindFramebuffer(GL_FRAMEBUFFER, 0);                // Volver a la ventana
-        //glViewport(0, 0, window_width, window_height);       // Ajuste de viewport
-
-        render_framebuffer();                                // Dibuja el framebuffer en pantalla
+        // Se desactiva la prueba de profundidad antes de renderizar el framebuffer
+        glDisable(GL_DEPTH_TEST);
+        render_framebuffer();   // Dibuja el framebuffer en pantalla
     }
 
 
