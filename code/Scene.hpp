@@ -100,18 +100,11 @@ namespace udit
         void   build_framebuffer();
         void   render_framebuffer();
 
-        GLuint      compile_shaders        ();
-        GLuint      compile_shaders        (const std::string& vertex_shader_code, const std::string& fragment_shader_code);
-        void        show_compilation_error (GLuint  shader_id);
-        void        show_linkage_error     (GLuint program_id);
         void        load_mesh              (const std::string& mesh_file_path);
         glm::vec3   random_color           ();
 
         void   configure_material (GLuint program_id);
         void   configure_light    (GLuint program_id);
-
-        GLuint create_texture_2d(const std::string& texture_path);
-        std::unique_ptr< Color_Buffer > load_image(const std::string& image_path);
     };
 
 }
