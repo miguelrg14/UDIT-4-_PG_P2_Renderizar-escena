@@ -33,103 +33,103 @@ namespace udit
     const string Scene::vertex_shader_code =
         "#version 330\n"
         ""
-        /// Definición del struct que describe una luz puntual
-        "struct Light\n"
-        "{\n"
-        "    vec4 position;\n"  // Posición de la luz en espacio ojo (eye‐space)
-        "    vec3 color;\n"     // Color/intensidad de la luz (RGB)
-        "};\n"
+        // Definición del struct que describe una luz puntual
+        "struct Light {\n"
+        "    vec4 position;\n"        // Posición de la luz en espacio ojo (eye-space)
+        "    vec3 color;\n"           // Color/intensidad de la luz (RGB)
+        "};"
         ""
-        /// Matrices uniformes enviadas desde la CPU/C++
-        "uniform mat4 model_view_matrix;\n" // Combina modelo y vista: lleva coordenadas de modelo a eye‐space
-        "uniform mat4 projection_matrix;\n" // Proyección de cámara (perspectiva u ortográfica)
-        "uniform mat4 normal_matrix;\n"     // Matriz para transformar normales correctamente
+        // Matrices uniformes enviadas desde la CPU/C++
+        "uniform mat4 model_view_matrix;\n"   // Modelo + vista: lleva coordenadas de modelo a eye-space
+        "uniform mat4 projection_matrix;\n"   // Proyección de cámara (perspectiva u ortográfica)
+        "uniform mat4 normal_matrix;\n"       // Matriz para transformar normales correctamente
         ""
-        /// Parámetros de iluminación especular
-        "uniform float specular_intensity;" // Intensidad global del componente especular
-        "uniform float shininess;"          // Exponente de “dureza” del brillo (mayor = más punto pequeño y concentrado)
-        "uniform vec3  specular_color;"     // Color del brillo especular
+        // Parámetros de iluminación especular
+        "uniform float specular_intensity;\n" // Intensidad global del componente especular
+        "uniform float shininess;\n"          // Exponente de “dureza” del brillo
+        "uniform vec3  specular_color;\n"     // Color del brillo especular
         ""
-        /// Parámetros de la luz y los componentes
-        "uniform Light light;\n"                // Datos de la luz (posición + color)
-        "uniform float ambient_intensity;\n"    // Intensidad de luz ambiental 
-        "uniform float diffuse_intensity;\n"    // Intensidad de luz difusa
+        // Parámetros de la luz y los componentes
+        "uniform Light light;\n"              // Datos de la luz (posición + color)
+        "uniform float ambient_intensity;\n"  // Intensidad de luz ambiental
+        "uniform float diffuse_intensity;\n"  // Intensidad de luz difusa
         ""
-        /// Propiedades del material
-        "uniform vec3 material_color;\n"        // Color base del material (difuso)
+        // Propiedades del material
+        "uniform vec3 material_color;\n"      // Color base del material (difuso)
         ""
-        /// Atributos de vértice (entradas del VAO)
-        "layout (location = 0) in vec3 vertex_coordinates;\n"   // Coordenadas XYZ del vértice
-        "layout (location = 1) in vec3 vertex_normal;\n"        // Normal del vértice (para iluminación)
-        "layout (location = 2) in vec2 vertex_uv;\n"            // Coordenadas UV para texturizado
+        // Niebla: rango y color
+        "uniform float fog_near;\n"           // distancia mínima donde empieza a entrar la niebla
+        "uniform float fog_far;\n"            // distancia a la que la niebla ya es completa
+        "uniform vec3  fog_color;\n"          // color de la niebla
         ""
-        /// Salidas (para pasar al fragment shader)
-        "out vec3 front_color;\n"   // Color resultante tras mezcla de ambient, diffuse y specular
-        "out vec2 texture_uv;\n"    // Coordenadas UV para muestrear la textura en el fragment
+        // Atributos de vértice (entradas del VAO)
+        "layout(location = 0) in vec3 vertex_coordinates;\n"
+        "layout(location = 1) in vec3 vertex_normal;\n"
+        "layout(location = 2) in vec2 vertex_uv;\n"
         ""
-        /// Función principal del shader de vértices
-        "void main()\n"
-        "{\n"
-        // 1) Transformar posición del vértice a espacio ojo (eye‐space)
-        "vec4 pos_view = model_view_matrix * vec4(vertex_coordinates, 1.0);"
-        // 2) Transformar y normalizar la normal normal_matrix corrige escalados/no‐uniformes de model_view
-        "vec3 N = normalize((normal_matrix * vec4(vertex_normal, 0.0)).xyz);"
-        // 3) Vector desde vértice hacia la luz
-        "vec3 L = normalize((light.position - pos_view).xyz);"
-        // 4) Vector desde vértice hacia la cámara (en eye‐space la cámara está en el origen)
-        "vec3 V = normalize(-pos_view.xyz);"     // cámara en origen de eye‐space
-
-        /// Cálculo del término difuso (Lambert)
-        // dot(N, L) = cos(θ) entre normal y luz
-        // max(..., 0) para no iluminar caras opuestas
-        "float diff = diffuse_intensity * max(dot(N, L), 0.0);" // Componente difusa de iluminación
-
-        /// Cálculo del término especular (Blinn-Phong)
-        // vector half‐way H entre luz y vista
-        // dot(N, H) = cos(φ) entre normal y half‐way
-        // pow(..., shininess) ajusta la concentración del brillo
-        "vec3 H = normalize(L + V);"
-        "float spec = specular_intensity * pow(max(dot(N, H), 0.0), shininess);"
-        // Alternativa (Phong)
-        //"vec3 R = reflect(-L, N);"
-        //"float spec = specular_intensity * pow(max(dot(R, V), 0.0), shininess);"
-
-        /// Mezcla final de los tres componentes: (Ambient + Diffuse + Specular)
-        "front_color =" 
-        "ambient_intensity * material_color"        // luz ambiental
-        "+ diff * light.color * material_color "    // componente difuso coloreado
-        "+ spec * specular_color;"                  // componente especular
-
-        // 5) Pasamos la UV al fragment shader
-        "texture_uv = vertex_uv;"
-        // 6) Calculamos la posición final en screen‐space
-        "gl_Position = projection_matrix * pos_view;"
+        // Salidas al fragment shader
+        "out vec3  front_color;\n"            // color iluminado (sin texturizar)
+        "out vec2  texture_uv;\n"             // pasamos las coordenadas UV
+        "out float fog_factor;\n"             // intensidad de la niebla [0..1]
+        ""
+        "void main() {\n"
+        // 1) Transformar posición a eye-space
+        "    vec4 pos_view = model_view_matrix * vec4(vertex_coordinates, 1.0);\n"
+        ""
+        // 2) Iluminación Phong (ambient + diffuse + specular)
+        "    vec3 N = normalize((normal_matrix * vec4(vertex_normal, 0.0)).xyz);\n"
+        "    vec3 L = normalize((light.position - pos_view).xyz);\n"
+        "    vec3 V = normalize(-pos_view.xyz);\n"
+        "    float diff = diffuse_intensity * max(dot(N, L), 0.0);\n"
+        "    vec3 H = normalize(L + V);\n"
+        "    float spec = specular_intensity * pow(max(dot(N, H), 0.0), shininess);\n"
+        ""
+        // 3) Componente iluminado sin texturizar
+        "    vec3 lit_color = ambient_intensity * material_color\n"
+        "                   + diff * light.color * material_color\n"
+        "                   + spec * specular_color;\n"
+        ""
+        // 4) Cálculo del factor de niebla según la distancia en eye-space
+        "    float d = -pos_view.z;  // distancia desde la cámara (eye-space)\n"
+        "    fog_factor = clamp((d - fog_near) / (fog_far - fog_near), 0.0, 1.0);\n"
+        ""
+        // 5) Pasar al fragment shader sin mezclar aún con la niebla
+        "    front_color = lit_color;\n"
+        "    texture_uv  = vertex_uv;\n"
+        ""
+        // 6) Posición final en clip-space
+        "    gl_Position = projection_matrix * pos_view;\n"
         "}";
 
     const string Scene::fragment_shader_code =
         "#version 330\n"
         ""
-        /// Uniform que representa la textura activa (unit 0) a muestrear
-        "uniform sampler2D sampler;\n"
+        // Textura y niebla
+        "uniform sampler2D sampler;\n"        // unidad 0: tu textura 2D
+        "uniform vec3      fog_color;\n"      // color de la niebla
         ""
-        /// Entradas desde el vertex shader
-        "in  vec2 texture_uv;\n"        // Coordenadas UV interpoladas para texturizado
-        "in  vec3 front_color;\n"       // Color calculado (ambient + difuso + especular)
+        // Entradas desde el vertex shader
+        "in  vec2  texture_uv;\n"
+        "in  vec3  front_color;\n"            // color iluminado (RGB)
+        "in  float fog_factor;\n"             // [0 = limpio, 1 = niebla completa]
         ""
-        /// Salida del fragment shader
-        "out vec4 fragment_color;\n"    // Color final del píxel
+        // Salida
+        "out vec4 fragment_color;\n"
         ""
-        "void main()\n"
-        "{\n"
-        // 1) Muestreamos la textura en las coordenadas UV proporcionadas
-        "    vec4 texture_color = texture(sampler, texture_uv);\n"
-        ""
-        // 2) Mezclamos el color de iluminación con el color de la textura.
-        //    Se usa un alpha de 0.5 para semi-transparencia (puedes ajustarlo).
-        //    front_color contiene el RGB; le damos alpha 0.5 y luego multiplicamos
-        //    por el RGBA de la textura para obtener el color final.
-        "    fragment_color = vec4(front_color, 0.5) * texture_color;\n" // Resultado final visual
-        // Ahora fragment_color es lo que se escribirá en el frame-buffer.
+        "void main() {\n"
+        // Si ya estamos en niebla completa, descartamos el fragmento
+        "    if (fog_factor >= 1.0)\n"
+        "        discard;                  // desaparece en la niebla\n"
+        ""        
+        "    vec4 texcol = texture(sampler, texture_uv);\n"             // 1) Muestreamos la textura (rgba)
+        ""        
+        "    vec3 littex = front_color * texcol.rgb;\n"                 // 2) Iluminación * textura.rgb
+        ""        
+        "    vec3 final_rgb   = mix(littex, fog_color, fog_factor);\n"  // 3) Mezcla RGB con el color de la niebla
+        ""        
+        "    float final_alpha = texcol.a * (1.0 - fog_factor);\n"      // 4) Atenuamos la α original según la niebla
+        ""        
+        "    fragment_color = vec4(final_rgb, final_alpha);\n"          // Resultado final: color + transparencia progresiva
         "}";
 
     /// Vertex Shader para renderizar el quad de post-procesado
@@ -207,6 +207,20 @@ namespace udit
               texture_id = create_texture_2d<GLuint>(texture_path);
         there_is_texture = texture_id > 0;
 
+        /// Niebla
+        // Se configura la niebla:
+        GLint  fog_near = glGetUniformLocation(program_id, "fog_near");
+        GLint   fog_far = glGetUniformLocation(program_id, "fog_far");
+        GLint fog_color = glGetUniformLocation(program_id, "fog_color");
+
+        //glUniform1f(fog_near, 5.f);
+        //glUniform1f(fog_far, 35.f);
+        //glUniform3f(fog_color, 1.f, 1.f, 1.f);
+        glUniform1f(fog_near, 1.0f);   // ya a 1 u aparece niebla
+        glUniform1f(fog_far, 50.0f);  // a 10 u es completamente niebla
+        glUniform3f(fog_color, 0.8f, 0.8f, 0.9f);
+
+        /// Terreno
         // Se establece la altura máxima del height map en el vertex shader:
         //glUniform1f(glGetUniformLocation(program_id, "max_height"), 5.f);
 
