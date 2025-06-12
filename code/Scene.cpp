@@ -1,5 +1,5 @@
-
-// Este c�digo es de dominio p�blico
+﻿
+// Este código es de dominio público
 // angel.rodriguez@udit.es
 
 #pragma once
@@ -31,85 +31,150 @@ namespace udit
     const string Scene::vertex_shader_code =
         "#version 330\n"
         ""
+        /// Definición del struct que describe una luz puntual
         "struct Light\n"
         "{\n"
-        "    vec4 position;\n"
-        "    vec3 color;\n"
+        "    vec4 position;\n"  // Posición de la luz en espacio ojo (eye‐space)
+        "    vec3 color;\n"     // Color/intensidad de la luz (RGB)
         "};\n"
         ""
-        "uniform mat4 model_view_matrix;\n"
-        "uniform mat4 projection_matrix;\n"
+        /// Matrices uniformes enviadas desde la CPU/C++
+        "uniform mat4 model_view_matrix;\n" // Combina modelo y vista: lleva coordenadas de modelo a eye‐space
+        "uniform mat4 projection_matrix;\n" // Proyección de cámara (perspectiva u ortográfica)
+        "uniform mat4 normal_matrix;\n"     // Matriz para transformar normales correctamente
         ""
-        "uniform Light light;\n"
-        "uniform float ambient_intensity;\n"
-        "uniform float diffuse_intensity;\n"
+        /// Parámetros de iluminación especular
+        "uniform float specular_intensity;" // Intensidad global del componente especular
+        "uniform float shininess;"          // Exponente de “dureza” del brillo (mayor = más punto pequeño y concentrado)
+        "uniform vec3  specular_color;"     // Color del brillo especular
         ""
-        "uniform vec3 material_color;\n"
-        "uniform mat4 normal_matrix;\n"
+        /// Parámetros de la luz y los componentes
+        "uniform Light light;\n"                // Datos de la luz (posición + color)
+        "uniform float ambient_intensity;\n"    // Intensidad de luz ambiental 
+        "uniform float diffuse_intensity;\n"    // Intensidad de luz difusa
         ""
-        "layout (location = 0) in vec3 vertex_coordinates;\n"
-        "layout (location = 1) in vec3 vertex_normal;\n"
-        "layout (location = 2) in vec2 vertex_uv;\n"
+        /// Propiedades del material
+        "uniform vec3 material_color;\n"        // Color base del material (difuso)
         ""
-        "out vec3 front_color;\n"
-        "out vec2 texture_uv;\n"
+        /// Atributos de vértice (entradas del VAO)
+        "layout (location = 0) in vec3 vertex_coordinates;\n"   // Coordenadas XYZ del vértice
+        "layout (location = 1) in vec3 vertex_normal;\n"        // Normal del vértice (para iluminación)
+        "layout (location = 2) in vec2 vertex_uv;\n"            // Coordenadas UV para texturizado
         ""
+        /// Salidas (para pasar al fragment shader)
+        "out vec3 front_color;\n"   // Color resultante tras mezcla de ambient, diffuse y specular
+        "out vec2 texture_uv;\n"    // Coordenadas UV para muestrear la textura en el fragment
+        ""
+        /// Función principal del shader de vértices
         "void main()\n"
         "{\n"
-        "    vec4 normal     = normal_matrix * vec4(vertex_normal, 0.0);\n"
-        "    vec4 position   = model_view_matrix * vec4(vertex_coordinates, 1.0);\n"
-        "    vec4 light_dir  = light.position - position;\n"
-        "    float intensity = diffuse_intensity * max(dot(normalize(normal.xyz), normalize(light_dir.xyz)), 0.0);\n"
-        "    front_color     = ambient_intensity * material_color + intensity * light.color * material_color;\n"
-        "    texture_uv      = vertex_uv;\n"
-        "    gl_Position     = projection_matrix * position;\n"
+        // 1) Transformar posición del vértice a espacio ojo (eye‐space)
+        "vec4 pos_view = model_view_matrix * vec4(vertex_coordinates, 1.0);"
+        // 2) Transformar y normalizar la normal normal_matrix corrige escalados/no‐uniformes de model_view
+        "vec3 N = normalize((normal_matrix * vec4(vertex_normal, 0.0)).xyz);"
+        // 3) Vector desde vértice hacia la luz
+        "vec3 L = normalize((light.position - pos_view).xyz);"
+        // 4) Vector desde vértice hacia la cámara (en eye‐space la cámara está en el origen)
+        "vec3 V = normalize(-pos_view.xyz);"     // cámara en origen de eye‐space
+
+        /// Cálculo del término difuso (Lambert)
+        // dot(N, L) = cos(θ) entre normal y luz
+        // max(..., 0) para no iluminar caras opuestas
+        "float diff = diffuse_intensity * max(dot(N, L), 0.0);" // Componente difusa de iluminación
+
+        /// Cálculo del término especular (Blinn-Phong)
+        // vector half‐way H entre luz y vista
+        // dot(N, H) = cos(φ) entre normal y half‐way
+        // pow(..., shininess) ajusta la concentración del brillo
+        "vec3 H = normalize(L + V);"
+        "float spec = specular_intensity * pow(max(dot(N, H), 0.0), shininess);"
+        // Alternativa (Phong)
+        //"vec3 R = reflect(-L, N);"
+        //"float spec = specular_intensity * pow(max(dot(R, V), 0.0), shininess);"
+
+        /// Mezcla final de los tres componentes: (Ambient + Diffuse + Specular)
+        "front_color =" 
+        "ambient_intensity * material_color"        // luz ambiental
+        "+ diff * light.color * material_color "    // componente difuso coloreado
+        "+ spec * specular_color;"                  // componente especular
+
+        // 5) Pasamos la UV al fragment shader
+        "texture_uv = vertex_uv;"
+        // 6) Calculamos la posición final en screen‐space
+        "gl_Position = projection_matrix * pos_view;"
         "}";
 
     const string Scene::fragment_shader_code =
         "#version 330\n"
         ""
+        /// Uniform que representa la textura activa (unit 0) a muestrear
         "uniform sampler2D sampler;\n"
         ""
-        "in  vec2 texture_uv;\n"
-        "out vec4 fragment_color;\n"
-        "in  vec3 front_color;\n"
+        /// Entradas desde el vertex shader
+        "in  vec2 texture_uv;\n"        // Coordenadas UV interpoladas para texturizado
+        "in  vec3 front_color;\n"       // Color calculado (ambient + difuso + especular)
+        ""
+        /// Salida del fragment shader
+        "out vec4 fragment_color;\n"    // Color final del píxel
         ""
         "void main()\n"
         "{\n"
+        // 1) Muestreamos la textura en las coordenadas UV proporcionadas
         "    vec4 texture_color = texture(sampler, texture_uv);\n"
         ""
+        // 2) Mezclamos el color de iluminación con el color de la textura.
+        //    Se usa un alpha de 0.5 para semi-transparencia (puedes ajustarlo).
+        //    front_color contiene el RGB; le damos alpha 0.5 y luego multiplicamos
+        //    por el RGBA de la textura para obtener el color final.
         "    fragment_color = vec4(front_color, 0.5) * texture_color;\n" // Resultado final visual
+        // Ahora fragment_color es lo que se escribirá en el frame-buffer.
         "}";
 
+    /// Vertex Shader para renderizar el quad de post-procesado
     const string Scene::effect_vertex_shader_code =
 
         "#version 330\n"
         ""
-        "layout (location = 0) in vec3 vertex_coordinates;"
-        "layout (location = 1) in vec2 vertex_texture_uv;"
+        /// Atributos de entrada (VAO):
+        "layout (location = 0) in vec3 vertex_coordinates;" // Posición del vértice en clip-space (-1 a +1)
+        "layout (location = 1) in vec2 vertex_texture_uv;"  // Coordenadas UV para muestrear la textura
         ""
-        "out vec2 texture_uv;"
+        /// Salida al fragment shader:
+        "out vec2 texture_uv;"  // Se pasa la UV para usar en el muestreo
         ""
         "void main()"
         "{"
+        // 1) Asigna la posición directamente (ya está en clip-space)
         "   gl_Position = vec4(vertex_coordinates, 1.0);"
+        // 2) Propaga el UV al fragment shader
         "   texture_uv  = vertex_texture_uv;"
         "}";
 
+    /// Fragment Shader de ejemplo para un efecto simple
     const string Scene::effect_fragment_shader_code =
-
         "#version 330\n"
         ""
+        /// Uniform para la textura renderizada en el framebuffer
         "uniform sampler2D sampler2d;"
         ""
-        "in  vec2 texture_uv;"
-        "out vec4 fragment_color;"
+        /// Entrada desde el vertex shader:
+        "in  vec2 texture_uv;"      // Coordenadas UV interpoladas
+
+        /// Salida del fragment shader:
+        "out vec4 fragment_color;"  // Color final del fragmento
         ""
         "void main()"
         "{"
+        /// Ejemplo de efecto: tono sepia amortiguado
+        //// 1) Muestreamos el color original de la textura
         //"   vec3 color = texture (sampler2d, texture_uv.st).rgb;"
+        //// 2) Convertimos a intensidad luminosa promedio
         //"   float i = (color.r + color.g + color.b) * 0.3333333333;"
-        //"   fragment_color = vec4(vec3(i, i, i) * vec3(1.0, 0.75, 0.5), 1.0);"    // Aplica un tono de color amarronado
+        //// 3) Aplicamos un tinte amarronado (sepia suave)
+        //"   vec3 sepia = vec3(1.0, 0.75, 0.5);"
+        //"   fragment_color = vec4(vec3(i, i, i) * sepia, 1.0);"
+        
+        /// Alternativa: (Aplicar textura original sin modificaciones)
         "   fragment_color = texture(sampler2d, texture_uv);"
         "}";
 
@@ -133,21 +198,21 @@ namespace udit
 
         model_view_matrix_id = glGetUniformLocation(program_id, "model_view_matrix");
         projection_matrix_id = glGetUniformLocation(program_id, "projection_matrix");
-        normal_matrix_id = glGetUniformLocation(program_id, "normal_matrix");
+            normal_matrix_id = glGetUniformLocation(program_id,     "normal_matrix");
 
-        // Se carga la textura y se env�a a la GPU:
-        texture_id = create_texture_2d(texture_path);
+        // Se carga la textura y se envía a la GPU:
+              texture_id = create_texture_2d(texture_path);
         there_is_texture = texture_id > 0;
 
-        // Se establece la altura m�xima del height map en el vertex shader:
+        // Se establece la altura máxima del height map en el vertex shader:
         //glUniform1f(glGetUniformLocation(program_id, "max_height"), 5.f);
 
         configure_material(program_id);
         configure_light(program_id);
 
-        // Se establece la configuraci�n b�sica:
+        // Se establece la configuración básica:
         glEnable(GL_CULL_FACE);
-        // glEnable(GL_DEPTH_TEST);     // PANTALLAZO NEGRO CON ESTO ACTIVADO!!!
+        glEnable(GL_DEPTH_TEST);     // PANTALLAZO NEGRO CON ESTO ACTIVADO!!!
         glClearColor(0.f, 0.f, 0.f, 1.f);
 
         resize(width, height);
@@ -173,7 +238,7 @@ namespace udit
 
     void Scene::update ()
     {
-        angle += 0.01f; // Rotaci�n de la escena en tiempo real
+        angle += 0.01f; // Rotación de la escena en tiempo real
     }
 
     void Scene::render()
@@ -185,24 +250,28 @@ namespace udit
         glClearColor(.8f, .8f, .8f, 1.f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Se selecciona la textura si est� disponible:
+        // Se selecciona la textura si está disponible:
         if (there_is_texture)
         {
             glBindTexture(GL_TEXTURE_2D, texture_id);
         }
 
-        /// C�MARA
-        // MATRIZ DE VISTA (transformaciones de la c�mara)
+        /// CÁMARA
+        // MATRIZ DE VISTA (transformaciones de la cámara)
         glm::mat4 view = camera.get_view_matrix();
 
-        /// PRIMERA ETAPA (RENDER DE LOS OBJETOS OPACOS):
-        // MATRIZ DEL MODELO (transformaciones del cubo)
+        /// MATRIZ DEL MODELO (transformaciones del cubo)
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.f, -1.f, -3.f));  // Posici�n fija del cubo
-        model = glm::rotate(model, angle, glm::vec3(1.f, 1.f, 0.f)); // Rotaci�n sobre eje Y
+        model = glm::translate(model, glm::vec3(0.f, -1.f, -3.f));  // Posición fija del cubo
+        model = glm::rotate(model, angle, glm::vec3(1.f, 1.f, 0.f)); // Rotación sobre eje Y
 
-        // COMBINACI�N FINAL: C�mara + modelos
+        // COMBINACIÓN FINAL: Cámara + modelos
         glm::mat4 model_view_matrix = view * model;
+
+        /// PRIMERA ETAPA (RENDER DE LOS OBJETOS OPACOS):
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
 
         glUniformMatrix4fv(model_view_matrix_id, 1, GL_FALSE, glm::value_ptr(model_view_matrix));
 
@@ -218,14 +287,11 @@ namespace udit
         glBindVertexArray(vao_id);
         glDrawElements(GL_TRIANGLES, number_of_indices, GL_UNSIGNED_SHORT, 0);
 
-        //// Se renderiza el cubo en el framebuffer:
-        //cube.render();
-
         /// SEGUNDA ETAPA (RENDER DE LOS OBJETOS TRANSPARENTES):
         // Se habilita la mezcla con el color de fondo usando el canal alpha y se deshabilita la escritura en el Z-Buffer:
-        glDepthMask(GL_FALSE);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDepthMask(GL_FALSE);
 
         // Se rota otro cubo y se empuja hacia el fondo:
         model = glm::mat4(1);
@@ -235,24 +301,21 @@ namespace udit
 
         glUniformMatrix4fv(model_view_matrix_id, 1, GL_FALSE, glm::value_ptr(model_view_matrix));
 
-        // Se renderiza un cubo:
+        // Se renderiza el cubo en el framebuffer:
         cube.render();
 
         // Se deshabilita la mezcla con el fondo y se restaura escritura en el Z-Buffer:
-        glDisable(GL_BLEND);
         glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
 
-        /// Postprocesado
-        // Renderizado postprocesado final a pantalla
-        //glBindFramebuffer(GL_FRAMEBUFFER, 0);                // Volver a la ventana
-        //glViewport(0, 0, window_width, window_height);       // Ajuste de viewport
-
-        render_framebuffer();                                // Dibuja el framebuffer en pantalla
+        // Se desactiva la prueba de profundidad antes de renderizar el framebuffer
+        glDisable(GL_DEPTH_TEST);
+        render_framebuffer();   // Dibuja el framebuffer en pantalla
     }
 
 
     /// <summary>
-    ///  OpenGL adapta el campo visual horizontal/vertical seg�n la nueva forma de la ventana si se cambia su tama�o
+    ///  OpenGL adapta el campo visual horizontal/vertical según la nueva forma de la ventana si se cambia su tamaño
     /// </summary>
     /// <param name="width"></param>
     /// <param name="height"></param>
@@ -278,12 +341,12 @@ namespace udit
             glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_id);
         }
 
-        // Se crea una textura que ser� el b�ffer de color vinculado al framebuffer:
+        // Se crea una textura que será el búffer de color vinculado al framebuffer:
         {
             glGenTextures(1, &out_texture_id);
             glBindTexture(GL_TEXTURE_2D, out_texture_id);
 
-            // El b�fer de color tendr� formato RGB:
+            // El búfer de color tendrá formato RGB:
 
             glTexImage2D
             (
@@ -302,7 +365,7 @@ namespace udit
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         }
 
-        // Se crea un Z-Buffer para usarlo en combinaci�n con el framebuffer:
+        // Se crea un Z-Buffer para usarlo en combinación con el framebuffer:
         {
             glGenRenderbuffers(1, &depthbuffer_id);
             glBindRenderbuffer(GL_RENDERBUFFER, depthbuffer_id);
@@ -319,7 +382,7 @@ namespace udit
             glDrawBuffers(1, &draw_buffer);
         }
 
-        // Se comprueba que el framebuffer est� listo:
+        // Se comprueba que el framebuffer está listo:
 
         assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
@@ -396,7 +459,7 @@ namespace udit
         GLuint   vertex_shader_id = glCreateShader(GL_VERTEX_SHADER);
         GLuint fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER);
 
-        // Se carga el c�digo de los shaders:
+        // Se carga el código de los shaders:
         const char*    vertex_shaders_code[] = {         vertex_shader_code.c_str() };
         const char*  fragment_shaders_code[] = {       fragment_shader_code.c_str() };
         const GLint    vertex_shaders_size[] = { (GLint)  vertex_shader_code.size() };
@@ -409,7 +472,7 @@ namespace udit
         glCompileShader(  vertex_shader_id);
         glCompileShader(fragment_shader_id);
 
-        // Se comprueba que si la compilaci�n ha tenido �xito:
+        // Se comprueba que si la compilación ha tenido éxito:
         glGetShaderiv(vertex_shader_id, GL_COMPILE_STATUS, &succeeded);
         if (!succeeded) show_compilation_error(vertex_shader_id);
 
@@ -426,7 +489,7 @@ namespace udit
         // Se linkan los shaders:
         glLinkProgram(program_id);
 
-        // Se comprueba si el linkage ha tenido �xito:
+        // Se comprueba si el linkage ha tenido éxito:
         glGetProgramiv(program_id, GL_LINK_STATUS, &succeeded);
         if (!succeeded) show_linkage_error(program_id);
 
@@ -446,7 +509,7 @@ namespace udit
         GLuint   vertex_shader_id = glCreateShader(GL_VERTEX_SHADER);
         GLuint fragment_shader_id = glCreateShader(GL_FRAGMENT_SHADER);
 
-        // Se carga el c�digo de los shaders:
+        // Se carga el código de los shaders:
 
         const char* vertex_shaders_code[] = { vertex_shader_code.c_str() };
         const char* fragment_shaders_code[] = { fragment_shader_code.c_str() };
@@ -461,7 +524,7 @@ namespace udit
         glCompileShader(vertex_shader_id);
         glCompileShader(fragment_shader_id);
 
-        // Se comprueba que si la compilaci�n ha tenido �xito:
+        // Se comprueba que si la compilación ha tenido éxito:
 
         glGetShaderiv(vertex_shader_id, GL_COMPILE_STATUS, &succeeded);
         if (!succeeded) show_compilation_error(vertex_shader_id);
@@ -482,7 +545,7 @@ namespace udit
 
         glLinkProgram(program_id);
 
-        // Se comprueba si el linkage ha tenido �xito:
+        // Se comprueba si el linkage ha tenido éxito:
 
         glGetProgramiv(program_id, GL_LINK_STATUS, &succeeded);
         if (!succeeded) show_linkage_error(program_id);
@@ -510,14 +573,14 @@ namespace udit
             aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_SortByPType
         );
 
-        // Si scene es un puntero nulo significa que el archivo no se pudo cargar con �xito:
+        // Si scene es un puntero nulo significa que el archivo no se pudo cargar con éxito:
         if (scene && scene->mNumMeshes > 0)
         {
             // Para este ejemplo se coge la primera malla solamente:
             auto mesh = scene->mMeshes[0];
             size_t number_of_vertices = mesh->mNumVertices;
 
-            // Se generan �ndices para los VBOs del cubo:
+            // Se generan índices para los VBOs del cubo:
             glGenBuffers(VBO_COUNT, vbo_ids);
             glGenVertexArrays(1, &vao_id);
             // Se activa el VAO del cubo para configurarlo:
@@ -530,15 +593,15 @@ namespace udit
             glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
 
-            // El archivo del modelo 3D de ejemplo no guarda un color por cada v�rtice, por lo que se va
-            // a crear un array de colores aleatorios (tantos como v�rtices):
+            // El archivo del modelo 3D de ejemplo no guarda un color por cada vértice, por lo que se va
+            // a crear un array de colores aleatorios (tantos como vértices):
             // vector< vec3 > vertex_colors(number_of_vertices);
             // for (auto& color : vertex_colors)
             // {
             //     color = random_color();
             // }
 
-            // Normales (para iluminaci�n)
+            // Normales (para iluminación)
             if (mesh->HasNormals())
             {
                 // Se suben a un VBO los datos de color y se vinculan al VAO:
@@ -562,10 +625,10 @@ namespace udit
                 glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
             }
 
-            // �ndices
-            // Los �ndices en ASSIMP est�n repartidos en "faces", pero OpenGL necesita un array de enteros
-            // por lo que vamos a mover los �ndices de las "faces" a un array de enteros:
-            // Se asume que todas las "faces" son tri�ngulos (revisar el flag aiProcess_Triangulate arriba).
+            // Índices
+            // Los índices en ASSIMP están repartidos en "faces", pero OpenGL necesita un array de enteros
+            // por lo que vamos a mover los índices de las "faces" a un array de enteros:
+            // Se asume que todas las "faces" son triángulos (revisar el flag aiProcess_Triangulate arriba).
             number_of_indices = mesh->mNumFaces * 3;
             vector<GLshort> indices(number_of_indices);
             auto vertex_index = indices.begin();
@@ -577,7 +640,7 @@ namespace udit
                 *vertex_index++ = face.mIndices[2];
             }
 
-            // Se suben a un EBO los datos de �ndices:
+            // Se suben a un EBO los datos de índices:
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_ids[INDICES_EBO]);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLshort), indices.data(), GL_STATIC_DRAW);
         }
@@ -592,15 +655,21 @@ namespace udit
 
     void Scene::configure_light(GLuint program_id)
     {
-        GLint light_position    = glGetUniformLocation(program_id, "light.position"   );
-        GLint light_color       = glGetUniformLocation(program_id, "light.color"      );
+        GLint    light_position = glGetUniformLocation(program_id, "light.position"   );
+        GLint       light_color = glGetUniformLocation(program_id, "light.color"      );
         GLint ambient_intensity = glGetUniformLocation(program_id, "ambient_intensity");
         GLint diffuse_intensity = glGetUniformLocation(program_id, "diffuse_intensity");
+        GLint      spec_int_loc = glGetUniformLocation(program_id, "specular_intensity");
+        GLint     shininess_loc = glGetUniformLocation(program_id, "shininess");
+        GLint    spec_color_loc = glGetUniformLocation(program_id, "specular_color");
 
         glUniform4f(light_position   , 10.0f, 10.f, 10.f, 1.f);
         glUniform3f(light_color      , 1.0f, 1.f, 1.f        );
         glUniform1f(ambient_intensity, 0.2f                  );
         glUniform1f(diffuse_intensity, 0.8f                  );
+        glUniform1f(spec_int_loc, 1.0f);   // fuerza del brillo
+        glUniform1f(shininess_loc, 32.0f);   // “dureza” del material
+        glUniform3f(spec_color_loc, 1.0f, 1.0f, 1.0f); // color del reflejo (blanco)
     }
 
     /// ------------------ TEXTURIZADO ------------------ 
@@ -622,9 +691,9 @@ namespace udit
                 SOIL_CREATE_NEW_ID,
                 SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y
             );
-            // Se habilitan las texturas, se genera un id para un b�fer de textura,
-            // se selecciona el b�fer de textura creado y se configuran algunos de
-            // sus par�metros:
+            // Se habilitan las texturas, se genera un id para un búfer de textura,
+            // se selecciona el búfer de textura creado y se configuran algunos de
+            // sus parámetros:
             //GLuint texture_id;
 
             glEnable(GL_TEXTURE_2D);
@@ -686,7 +755,7 @@ namespace udit
                 reinterpret_cast<uint8_t*>(image->colors())
             );
 
-            // Se libera la memoria que reserv� SOIL2 para cargar la imagen:
+            // Se libera la memoria que reservó SOIL2 para cargar la imagen:
             SOIL_free_image_data(loaded_pixels);
 
             return image;

@@ -1,3 +1,4 @@
+
 // Este código es de dominio público
 // angel.rodriguez@udit.es
 
@@ -22,39 +23,60 @@ int main(int, char* [])
         { 3, 3 }
     );
 
-    // Activar modo relativo del ratón para captura continua y ocultar cursor
-    SDL_SetRelativeMouseMode(SDL_TRUE);
-
     Scene scene(viewport_width, viewport_height);
 
     bool exit = false;
+    int  mouse_x = 0;
+    int  mouse_y = 0;
+    bool button_down = false;
+
     bool camera_active = true;  // Modo FPS activado al inicio
-    SDL_SetRelativeMouseMode(SDL_TRUE); // Oculta cursor y captura ratón
+    SDL_SetRelativeMouseMode(SDL_TRUE);
 
     do
     {
+        // Se procesan los eventos acumulados:
+
         SDL_Event event;
-        int mouse_dx = 0, mouse_dy = 0;
 
         while (SDL_PollEvent(&event) > 0)
         {
-            if (event.type == SDL_QUIT)
+            switch (event.type)
+            {
+            case SDL_MOUSEMOTION:
+            {
+                //SDL_GetMouseState(&mouse_x, &mouse_y);
+
+                if (camera_active) 
+                {
+                    mouse_x = event.motion.xrel;
+                    mouse_y = event.motion.yrel;
+                    scene.camera.process_mouse(mouse_x, mouse_y);
+                }
+
+                break;
+            }
+
+            case SDL_KEYDOWN:
+                switch (event.key.keysym.sym) 
+                {
+                case SDLK_ESCAPE:
+                    camera_active = !camera_active; // Alternar modo
+                    SDL_SetRelativeMouseMode(camera_active ? SDL_TRUE : SDL_FALSE);
+                    break;
+
+                //case SDLK_w || SDLK_a || SDLK_s || SDLK_d:
+                //    scene.camera.process_keyboard(keystate, delta_time);
+                //    // puedes añadir más cases para otras teclas
+                default:
+                    break;
+                }
+                break;
+
+            case SDL_QUIT:
             {
                 exit = true;
             }
-
-            if (event.type == SDL_MOUSEMOTION)
-            {
-                if (camera_active) {
-                    mouse_dx = event.motion.xrel;
-                    mouse_dy = event.motion.yrel;
-                }
-            }
-
-            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)
-            {
-                camera_active = !camera_active; // Alternar modo
-                SDL_SetRelativeMouseMode(camera_active ? SDL_TRUE : SDL_FALSE);
             }
         }
 
@@ -63,20 +85,17 @@ int main(int, char* [])
         // Tiempo fijo entre frames (ajusta según tu temporizador real si tienes)
         float delta_time = 1.0f / 60.0f;
 
-        if (camera_active)
-        {
-            // Procesar input para mover la cámara
-            scene.camera.process_keyboard(keystate, delta_time);
-            scene.camera.process_mouse(mouse_dx, mouse_dy);
-        }
+        scene.camera.process_keyboard(keystate, delta_time);
 
-        // Actualizar la escena (puede contener otras animaciones)
+        // Se actualiza la escena:
         scene.update();
-        // Renderizar la escena (ya debe usar camera.get_view_matrix() internamente)
+
+        // Se redibuja la escena:
         scene.render();
-        // Actualizar la ventana
+
+        // Se actualiza el contenido de la ventana:
         window.swap_buffers();
-    } while (!exit);
+    } while (not exit);
 
     SDL_Quit();
 
