@@ -202,8 +202,13 @@ namespace udit
         projection_matrix_id = glGetUniformLocation(program_id, "projection_matrix");
             normal_matrix_id = glGetUniformLocation(program_id,     "normal_matrix");
 
+<<<<<<< HEAD
         // Se carga la textura y se envía a la GPU:
               texture_id = create_texture_2d<GLuint>(texture_path);
+=======
+        // Se carga la textura y se env�a a la GPU:
+              texture_id = create_texture_2d(texture_path);
+>>>>>>> 47d7ac5a7784d31368eece2bea6bfe4999338fa9
         there_is_texture = texture_id > 0;
 
         // Se establece la altura máxima del height map en el vertex shader:
