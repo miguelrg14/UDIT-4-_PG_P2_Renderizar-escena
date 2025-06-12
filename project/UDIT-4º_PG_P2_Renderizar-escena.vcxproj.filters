@@ -22,21 +22,15 @@
     <Filter Include="Archivos de encabezado\Grafo">
       <UniqueIdentifier>{2c58b151-4b6e-4c70-a544-b3a63dc2bcdd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Archivos de encabezado\Skybox">
+      <UniqueIdentifier>{090d612e-89ed-4575-a5d4-92d05ac148dd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Archivos de recursos\Skybox">
+      <UniqueIdentifier>{968d94d6-fb11-414a-8227-b0734ffa006e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\code\Scene.hpp">
-      <Filter>Archivos de encabezado</Filter>
-    </ClInclude>
-    <ClInclude Include="..\code\Window.hpp">
-      <Filter>Archivos de encabezado</Filter>
-    </ClInclude>
-    <ClInclude Include="..\code\Camera.hpp">
-      <Filter>Archivos de encabezado</Filter>
-    </ClInclude>
-    <ClInclude Include="..\code\Cube.hpp">
-      <Filter>Archivos de encabezado</Filter>
-    </ClInclude>
-    <ClInclude Include="..\code\Terrain.hpp">
       <Filter>Archivos de encabezado</Filter>
     </ClInclude>
     <ClInclude Include="..\code\Color.hpp">
@@ -51,6 +45,24 @@
     <ClInclude Include="..\code\SceneNode.hpp">
       <Filter>Archivos de encabezado\Grafo</Filter>
     </ClInclude>
+    <ClInclude Include="..\code\Cube.hpp">
+      <Filter>Archivos de encabezado\Otros</Filter>
+    </ClInclude>
+    <ClInclude Include="..\code\Window.hpp">
+      <Filter>Archivos de encabezado\Otros</Filter>
+    </ClInclude>
+    <ClInclude Include="..\code\Camera.hpp">
+      <Filter>Archivos de encabezado\Otros</Filter>
+    </ClInclude>
+    <ClInclude Include="..\code\Terrain.hpp">
+      <Filter>Archivos de encabezado\Otros</Filter>
+    </ClInclude>
+    <ClInclude Include="..\code\Skybox.hpp">
+      <Filter>Archivos de encabezado\Skybox</Filter>
+    </ClInclude>
+    <ClInclude Include="..\code\Texture_Cube.hpp">
+      <Filter>Archivos de encabezado\Skybox</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\code\main.cpp">
@@ -59,19 +71,25 @@
     <ClCompile Include="..\code\Scene.cpp">
       <Filter>Archivos de recursos</Filter>
     </ClCompile>
-    <ClCompile Include="..\code\Window.cpp">
-      <Filter>Archivos de recursos</Filter>
-    </ClCompile>
-    <ClCompile Include="..\code\Camera.cpp">
-      <Filter>Archivos de recursos</Filter>
+    <ClCompile Include="..\code\opengl-recipes.cpp">
+      <Filter>Archivos de recursos\Otros</Filter>
     </ClCompile>
     <ClCompile Include="..\code\Cube.cpp">
-      <Filter>Archivos de recursos</Filter>
+      <Filter>Archivos de recursos\Otros</Filter>
+    </ClCompile>
+    <ClCompile Include="..\code\Window.cpp">
+      <Filter>Archivos de recursos\Otros</Filter>
     </ClCompile>
     <ClCompile Include="..\code\Terrain.cpp">
-      <Filter>Archivos de recursos</Filter>
+      <Filter>Archivos de recursos\Otros</Filter>
     </ClCompile>
-    <ClCompile Include="..\code\opengl-recipes.cpp">
+    <ClCompile Include="..\code\Skybox.cpp">
+      <Filter>Archivos de recursos\Skybox</Filter>
+    </ClCompile>
+    <ClCompile Include="..\code\Texture_Cube.cpp">
+      <Filter>Archivos de recursos\Skybox</Filter>
+    </ClCompile>
+    <ClCompile Include="..\code\Camera.cpp">
       <Filter>Archivos de recursos\Otros</Filter>
     </ClCompile>
   </ItemGroup>

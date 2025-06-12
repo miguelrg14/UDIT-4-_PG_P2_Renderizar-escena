@@ -1,55 +1,37 @@
 
 #include "Camera.hpp"
+#include <SDL.h>
 
-Camera::Camera(glm::vec3 pos, float yaw, float pitch)
-    : 
-    position    (pos), 
-    yaw         (yaw), 
-    pitch       (pitch), 
-    speed       (5.0f), 
-    sensitivity (0.1f),
-    world_up    (0.0f, 1.0f, 0.0f)
-{
-    update_vectors();
-}
+namespace udit {
 
-void Camera::process_keyboard(const Uint8* keystate, float delta_time)
-{
-    float velocity = speed * delta_time;
-    if (keystate[SDL_SCANCODE_W]) position += front * velocity;
-    if (keystate[SDL_SCANCODE_S]) position -= front * velocity;
-    if (keystate[SDL_SCANCODE_A]) position -= right * velocity;
-    if (keystate[SDL_SCANCODE_D]) position += right * velocity;
-}
+    void Camera::process_keyboard(const Uint8* keys, float deltaTime)
+    {
+        // Dirección «forward»
+        glm::vec3 forward = glm::normalize(glm::vec3(target - location));
+        // Eje «right» a partir de «forward» y up global (0,1,0)
+        glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0.f, 1.f, 0.f)));
+        float velocity = movementSpeed * deltaTime;
 
-void Camera::process_mouse(int dx, int dy)
-{
-    yaw     += dx * sensitivity;
-    pitch   -= dy * sensitivity;
+        if (keys[SDL_SCANCODE_W]) move(forward * velocity);
+        if (keys[SDL_SCANCODE_S]) move(-forward * velocity);
+        if (keys[SDL_SCANCODE_A]) move(-right * velocity);
+        if (keys[SDL_SCANCODE_D]) move(right * velocity);
+    }
 
-    if (pitch >  89.0f) pitch = 89.0f;
-    if (pitch < -89.0f) pitch = -89.0f;
+    void Camera::process_mouse(int xrel, int yrel)
+    {
+        float xoffset = xrel * mouseSensitivity;
+        float yoffset = yrel * mouseSensitivity;
 
-    update_vectors();
-}
+        // Primero rotamos en yaw (alrededor de Y global)
+        glm::mat4 R = glm::rotate(glm::mat4(1.0f), glm::radians(-xoffset), glm::vec3(0.f, 1.f, 0.f));
 
-void Camera::update_vectors()
-{
-    glm::vec3 fwd;
-    fwd.x   = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    fwd.y   = sin(glm::radians(pitch));
-    fwd.z   = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    front   = glm::normalize(fwd);
-    right   = glm::normalize(glm::cross(front, world_up));
-    up      = glm::normalize(glm::cross(right, front));
-}
+        // Luego pitch (alrededor del eje «right» de la cámara)
+        glm::vec3 forward = glm::normalize(glm::vec3(target - location));
+        glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0.f, 1.f, 0.f)));
+        R = glm::rotate(R, glm::radians(-yoffset), right);
 
-glm::mat4 Camera::get_view_matrix() const
-{
-    return glm::lookAt(position, position + front, up);
-}
+        rotate(R);
+    }
 
-glm::vec3 Camera::get_position() const
-{
-    return position;
 }
