@@ -100,8 +100,6 @@ namespace udit
         void   build_framebuffer();
         void   render_framebuffer();
 
-        GLuint      compile_shaders        ();
-        GLuint      compile_shaders        (const std::string& vertex_shader_code, const std::string& fragment_shader_code);
         void        show_compilation_error (GLuint  shader_id);
         void        show_linkage_error     (GLuint program_id);
         void        load_mesh              (const std::string& mesh_file_path);
