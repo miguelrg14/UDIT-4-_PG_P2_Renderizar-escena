@@ -19,6 +19,9 @@
     <Filter Include="Archivos de recursos\Otros">
       <UniqueIdentifier>{4913cb49-fa64-48c5-bac0-d87604a30fc6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Archivos de encabezado\Grafo">
+      <UniqueIdentifier>{2c58b151-4b6e-4c70-a544-b3a63dc2bcdd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\code\Scene.hpp">
@@ -44,6 +47,9 @@
     </ClInclude>
     <ClInclude Include="..\code\opengl-recipes.hpp">
       <Filter>Archivos de encabezado\Otros</Filter>
+    </ClInclude>
+    <ClInclude Include="..\code\SceneNode.hpp">
+      <Filter>Archivos de encabezado\Grafo</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

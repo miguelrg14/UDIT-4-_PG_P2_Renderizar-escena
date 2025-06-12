@@ -43,6 +43,17 @@
             void render ();
 
         };
+        //struct IMesh { virtual void draw(const glm::mat4&, GLuint) = 0; };
+        //class Cube : public IMesh 
+        //{
+        //        void draw(const glm::mat4& modelMatrix, GLuint program) override {
+        //        GLint loc = glGetUniformLocation(program, "model_view_matrix");
+        //        glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+        //        glBindVertexArray(vao_id);
+        //        glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_BYTE, 0);
+        //    }
+        //};
+
 
     }
 

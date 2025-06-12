@@ -84,6 +84,7 @@
     <ClInclude Include="..\code\Cube.hpp" />
     <ClInclude Include="..\code\opengl-recipes.hpp" />
     <ClInclude Include="..\code\Scene.hpp" />
+    <ClInclude Include="..\code\SceneNode.hpp" />
     <ClInclude Include="..\code\Terrain.hpp" />
     <ClInclude Include="..\code\Window.hpp" />
   </ItemGroup>
