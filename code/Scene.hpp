@@ -11,9 +11,9 @@
 #include "Color.hpp"
 #include "Color_Buffer.hpp"
 #include "Camera.hpp"
-#include "Cube.hpp"
-//#include "Terrain.hpp"
 #include "Skybox.hpp"
+#include "Cube.hpp"
+#include "Terrain.hpp"
 
 namespace udit
 {
@@ -51,7 +51,7 @@ namespace udit
         GLuint        out_texture_id;
 
         /// Terreno (Mallas de elevación)
-        //Terrain terrain;
+        Terrain terrain;
 
         Cube  cube;
 

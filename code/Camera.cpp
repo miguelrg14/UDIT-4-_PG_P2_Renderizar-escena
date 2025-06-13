@@ -2,7 +2,8 @@
 #include "Camera.hpp"
 #include <SDL.h>
 
-namespace udit {
+namespace udit 
+{
 
     void Camera::process_keyboard(const Uint8* keys, float deltaTime)
     {
@@ -20,18 +21,20 @@ namespace udit {
 
     void Camera::process_mouse(int xrel, int yrel)
     {
+        // Aplica sensibilidad
         float xoffset = xrel * mouseSensitivity;
         float yoffset = yrel * mouseSensitivity;
 
-        // Primero rotamos en yaw (alrededor de Y global)
-        glm::mat4 R = glm::rotate(glm::mat4(1.0f), glm::radians(-xoffset), glm::vec3(0.f, 1.f, 0.f));
+        // 1) Ajusta yaw y pitch
+        yaw += xoffset;   // mover ratón a la derecha aumenta yaw
+        pitch -= yoffset;   // mover ratón hacia arriba aumenta pitch
 
-        // Luego pitch (alrededor del eje «right» de la cámara)
-        glm::vec3 forward = glm::normalize(glm::vec3(target - location));
-        glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0.f, 1.f, 0.f)));
-        R = glm::rotate(R, glm::radians(-yoffset), right);
+        // 2) Clamp al pitch para evitar 'voltear' la cámara
+        if (pitch > 89.0f) pitch = 89.0f;
+        if (pitch < -89.0f) pitch = -89.0f;
 
-        rotate(R);
+        // 3) Reconstruye el target a partir de esos ángulos
+        updateCameraVectors();
     }
 
 }

@@ -186,8 +186,8 @@ namespace udit
         : 
         camera(float(width) / float(height)),
         skybox("../assets/sky-cube-map-"),
-        angle(0)
-        //terrain(10.f, 10.f, 50, 50)
+        angle(0),
+        terrain(10.f, 10.f, 50, 50)
     {
         /// Postprocesado
         // Se crea la textura y se dibuja algo en ella:
@@ -222,7 +222,7 @@ namespace udit
 
         /// Terreno
         // Se establece la altura máxima del height map en el vertex shader:
-        //glUniform1f(glGetUniformLocation(program_id, "max_height"), 5.f);
+        glUniform1f(glGetUniformLocation(program_id, "max_height"), 5.f);
 
         configure_material(program_id);
         configure_light(program_id);
