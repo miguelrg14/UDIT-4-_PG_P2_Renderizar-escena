@@ -119,7 +119,7 @@ namespace udit
         "void main() {\n"
         // Si ya estamos en niebla completa, descartamos el fragmento
         "    if (fog_factor >= 1.0)\n"
-        "        discard;                  // desaparece en la niebla\n"
+        "        discard;\n"    // desaparece en la niebla
         ""        
         "    vec4 texcol = texture(sampler, texture_uv);\n"             // 1) Muestreamos la textura (rgba)
         ""        
@@ -127,7 +127,7 @@ namespace udit
         ""        
         "    vec3 final_rgb   = mix(littex, fog_color, fog_factor);\n"  // 3) Mezcla RGB con el color de la niebla
         ""        
-        "    float final_alpha = texcol.a * (1.0 - fog_factor);\n"      // 4) Atenuamos la α original según la niebla
+        "    float final_alpha = texcol.a * (0.5 - fog_factor);\n"      // 4) Atenuar el αlpha original según la niebla
         ""        
         "    fragment_color = vec4(final_rgb, final_alpha);\n"          // Resultado final: color + transparencia progresiva
         "}";
@@ -213,10 +213,7 @@ namespace udit
         GLint   fog_far = glGetUniformLocation(program_id, "fog_far");
         GLint fog_color = glGetUniformLocation(program_id, "fog_color");
 
-        //glUniform1f(fog_near, 5.f);
-        //glUniform1f(fog_far, 35.f);
-        //glUniform3f(fog_color, 1.f, 1.f, 1.f);
-        glUniform1f(fog_near, 1.0f);   // ya a 1 u aparece niebla
+        glUniform1f(fog_near, 30.0f);   // ya a 1 u aparece niebla
         glUniform1f(fog_far, 50.0f);  // a 10 u es completamente niebla
         glUniform3f(fog_color, 0.8f, 0.8f, 0.9f);
 
